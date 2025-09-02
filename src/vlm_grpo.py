@@ -1,12 +1,17 @@
 import torch
+import logging
 from transformers import Qwen2_5_VLForConditionalGeneration
 from peft import LoraConfig, get_peft_model, PeftModel
 from typing import Optional
 from trl import GRPOConfig, GRPOTrainer
 from datasets import Dataset as HFDataset
+from typing import Any
 
 from reward import Reward
 
+
+logger = logging.getLogger("vlm_grpo")
+logger.setLevel(logging.INFO)
 
 class LoRA:
     """
@@ -22,8 +27,11 @@ class LoRA:
         
         Args:
             model: The base model to apply LoRA to
+            logger: Logger instance for tracking process
         """
         self.model: Qwen2_5_VLForConditionalGeneration = model
+        logger: logging.Logger = logger
+        logger.info("LoRA configuration initialized")
 
     def config_lora(self, task_type: str, r: int, alpha: int, dropout: float) -> PeftModel:
         """
@@ -38,6 +46,9 @@ class LoRA:
         Returns:
             The model with LoRA applied
         """
+        logger.info(f"Configuring LoRA with r={r}, alpha={alpha}, dropout={dropout}")
+        logger.info("Target modules: ['q_proj', 'v_proj']")
+        
         lora_config: LoraConfig = LoraConfig(
             task_type=task_type,
             r=r,
@@ -46,8 +57,11 @@ class LoRA:
             target_modules=["q_proj", "v_proj"],
         )
 
+        logger.info("Applying LoRA configuration to model...")
         self.model = get_peft_model(self.model, lora_config)
-
+        
+        logger.info("LoRA configuration applied successfully")
+        logger.info("Model trainable parameters:")
         self.model.print_trainable_parameters()
 
         return self.model
@@ -61,17 +75,24 @@ class VLMGRPO:
     using the GRPO algorithm with LoRA fine-tuning for efficiency.
     """
 
-    def __init__(self, model_id: str, processor: any) -> None:
+    def __init__(self, model_id: str, processor: Any, output_dir: str = "./output") -> None:
         """
         Initialize the VLM-GRPO trainer.
         
         Args:
             model_id (str): The identifier of the pre-trained model to load
             processor: The processor for handling multimodal inputs (text + images)
+            output_dir (str): Directory for saving outputs and logs
         """
         self.model_id: str = model_id
-        self.processor: any = processor
+        self.processor: Any = processor
         self.model: Optional[PeftModel] = None
+        self.output_dir: str = output_dir
+        
+        # Setup logging
+        logger.info("VLM GRPO trainer initialized")
+        logger.info(f"Model ID: {model_id}")
+        logger.info(f"Output directory: {output_dir}")
        
     def load_model(self) -> None:
         """
@@ -80,13 +101,26 @@ class VLMGRPO:
         Loads a Qwen2.5-VL model with bfloat16 precision and applies LoRA
         with default hyperparameters (r=8, alpha=32, dropout=0.1).
         """
-        self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            pretrained_model_name_or_path=self.model_id,
-            torch_dtype=torch.bfloat16,
-            device_map="auto"
-        )
+        logger.info(f"Loading pre-trained model: {self.model_id}")
+        logger.info("Using bfloat16 precision and auto device mapping")
+        
+        try:
+            self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+                pretrained_model_name_or_path=self.model_id,
+                torch_dtype=torch.bfloat16,
+                device_map="auto"
+            )
+            logger.info("Base model loaded successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to load base model: {str(e)}")
+            raise
 
-        self.model = LoRA(self.model).config_lora(task_type="CAUSAL_LM", r=8, alpha=32, dropout=0.1)
+        logger.info("Applying LoRA configuration...")
+        self.model = LoRA(self.model, logger).config_lora(
+            task_type="CAUSAL_LM", r=8, alpha=32, dropout=0.1
+        )
+        logger.info("Model loading and LoRA configuration completed")
 
     def _config_grpo(self,
                      output_dir: str,
@@ -115,6 +149,17 @@ class VLMGRPO:
         Returns:
             GRPOConfig: Configured training arguments
         """
+        logger.info("Configuring GRPO training parameters:")
+        logger.info(f"  Output directory: {output_dir}")
+        logger.info(f"  Learning rate: {lr}")
+        logger.info(f"  Epochs: {epochs}")
+        logger.info(f"  Batch size: {batch_size}")
+        logger.info(f"  Max length: {max_length}")
+        logger.info(f"  Num generations: {num_generations}")
+        logger.info(f"  Max prompt length: {max_prompt_length}")
+        logger.info(f"  Log steps: {log_steps}")
+        logger.info(f"  Save steps: {save_steps}")
+        
         # Configure training arguments using GRPOConfig
         training_args: GRPOConfig = GRPOConfig(
             output_dir=output_dir,
@@ -137,6 +182,7 @@ class VLMGRPO:
             save_steps=save_steps,
         )
         
+        logger.info("GRPO configuration completed successfully")
         return training_args
 
     def train(self, 
@@ -169,25 +215,73 @@ class VLMGRPO:
             This method configures and executes GRPO training with the specified hyperparameters.
             The training process will save checkpoints and logs to the specified output directory.
         """
-        train_args: GRPOConfig = self._config_grpo(output_dir=output_dir,
-                                       lr=learning_rate,
-                                       epochs=epochs,
-                                       batch_size=batch_size,
-                                       max_length=max_length,
-                                       num_generations=num_generations,
-                                       max_prompt_length=max_prompt_length,
-                                       log_steps=log_steps,
-                                       save_steps=save_steps)
-
-        trainer: GRPOTrainer = GRPOTrainer(
-            model=self.model,
-            processing_class=self.processor,
-            reward_funcs=[Reward.format_reward, Reward.accuracy_reward],
-            args=train_args,
-            train_dataset=train_dataset,
+        logger.info("=" * 60)
+        logger.info("STARTING VLM GRPO TRAINING")
+        logger.info("=" * 60)
+        
+        # Log dataset information
+        logger.info(f"Training dataset size: {len(train_dataset)}")
+        logger.info(f"Dataset features: {train_dataset.features}")
+        
+        # Configure training
+        train_args: GRPOConfig = self._config_grpo(
+            output_dir=output_dir,
+            lr=learning_rate,
+            epochs=epochs,
+            batch_size=batch_size,
+            max_length=max_length,
+            num_generations=num_generations,
+            max_prompt_length=max_prompt_length,
+            log_steps=log_steps,
+            save_steps=save_steps
         )
 
-        trainer.train()
+        logger.info("Initializing GRPO trainer...")
+        try:
+            trainer: GRPOTrainer = GRPOTrainer(
+                model=self.model,
+                processing_class=self.processor,
+                reward_funcs=[Reward.format_reward, Reward.accuracy_reward],
+                args=train_args,
+                train_dataset=train_dataset,
+            )
+            logger.info("GRPO trainer initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize GRPO trainer: {str(e)}")
+            raise
 
-        trainer.save_model(train_args.output_dir)
-        trainer.push_to_hub(dataset_name=output_dir)
+        logger.info("Starting training...")
+        logger.info(f"Training will run for {epochs} epochs")
+        logger.info(f"Model checkpoints will be saved every {save_steps} steps")
+        logger.info(f"Training metrics will be logged every {log_steps} steps")
+        
+        try:
+            trainer.train()
+            logger.info("Training completed successfully!")
+            
+        except Exception as e:
+            logger.error(f"Training failed: {str(e)}")
+            raise
+
+        # Save final model
+        logger.info(f"Saving final model to {train_args.output_dir}")
+        try:
+            trainer.save_model(train_args.output_dir)
+            logger.info("Model saved successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to save model: {str(e)}")
+            raise
+
+        # Push to hub
+        logger.info(f"Pushing model to hub with dataset name: {output_dir}")
+        try:
+            trainer.push_to_hub(dataset_name=output_dir)
+            logger.info("Model pushed to hub successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to push model to hub: {str(e)}")
+            raise
+
+        logger.info("VLM GRPO TRAINING COMPLETED SUCCESSFULLY")
