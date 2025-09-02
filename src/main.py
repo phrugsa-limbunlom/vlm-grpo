@@ -3,7 +3,7 @@ from vlm_grpo import VLMGRPO
 from transformers import AutoProcessor
 
 
-def main():
+if __name__ == "__main__":
 
     dataset_id = 'lmms-lab/multimodal-open-r1-8k-verified'
     model_id = "Qwen/Qwen2.5-VL-3B-Instruct"
