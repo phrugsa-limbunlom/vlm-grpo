@@ -61,7 +61,7 @@ class VLMGRPO:
     using the GRPO algorithm with LoRA fine-tuning for efficiency.
     """
 
-    def __init__(self, model_id: str, processor: Any) -> None:
+    def __init__(self, model_id: str, processor: any) -> None:
         """
         Initialize the VLM-GRPO trainer.
         
@@ -70,7 +70,7 @@ class VLMGRPO:
             processor: The processor for handling multimodal inputs (text + images)
         """
         self.model_id: str = model_id
-        self.processor: Any = processor
+        self.processor: any = processor
         self.model: Optional[PeftModel] = None
        
     def load_model(self) -> None:
