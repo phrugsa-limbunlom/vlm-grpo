@@ -18,7 +18,11 @@ if __name__ == "__main__":
     log_steps=10,
     save_steps=10
 
-    train_dataset = Dataset(dataset_id=dataset_id).load_data().get_train_dataset()
+    dataset = Dataset(dataset_id=dataset_id)
+
+    dataset.load_data()
+
+    train_dataset = dataset.get_train_dataset()
 
     train_dataset = TransformData(model_id=model_id, processor=AutoProcessor.from_pretrained(model_id)).transform(train_dataset)
 
