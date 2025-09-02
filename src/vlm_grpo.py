@@ -1,5 +1,7 @@
 import torch
 import logging
+import os
+from datetime import datetime
 from transformers import Qwen2_5_VLForConditionalGeneration
 from peft import LoraConfig, get_peft_model, PeftModel
 from typing import Optional
@@ -10,8 +12,29 @@ from typing import Any
 from reward import Reward
 
 
-logger = logging.getLogger("vlm_grpo")
-logger.setLevel(logging.INFO)
+def setup_logger(output_dir: str = "./output") -> logging.Logger:
+    """Minimal logger setup with file and console output."""
+    os.makedirs(output_dir, exist_ok=True)
+    logger = logging.getLogger(f"vlm_grpo_{output_dir}")
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()
+    
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    
+    # File handler
+    log_file = os.path.join(output_dir, f"training_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    logger.info(f"Logger initialized. Log file: {log_file}")
+    return logger
+
 
 class LoRA:
     """
@@ -27,10 +50,9 @@ class LoRA:
         
         Args:
             model: The base model to apply LoRA to
-            logger: Logger instance for tracking process
         """
         self.model: Qwen2_5_VLForConditionalGeneration = model
-      
+        logger = logging.getLogger("vlm_grpo")
         logger.info("LoRA configuration initialized")
 
     def config_lora(self, task_type: str, r: int, alpha: int, dropout: float) -> PeftModel:
@@ -46,6 +68,7 @@ class LoRA:
         Returns:
             The model with LoRA applied
         """  
+        logger = logging.getLogger("vlm_grpo")
         logger.info(f"Configuring LoRA with r={r}, alpha={alpha}, dropout={dropout}")
         logger.info("Target modules: ['q_proj', 'v_proj']")
         
@@ -90,6 +113,7 @@ class VLMGRPO:
         self.output_dir: str = output_dir
         
         # Setup logging
+        logger = setup_logger(output_dir)
         logger.info("VLM GRPO trainer initialized")
         logger.info(f"Model ID: {model_id}")
         logger.info(f"Output directory: {output_dir}")
@@ -101,6 +125,7 @@ class VLMGRPO:
         Loads a Qwen2.5-VL model with bfloat16 precision and applies LoRA
         with default hyperparameters (r=8, alpha=32, dropout=0.1).
         """
+        logger = logging.getLogger("vlm_grpo")
         logger.info(f"Loading pre-trained model: {self.model_id}")
         logger.info("Using bfloat16 precision and auto device mapping")
         
@@ -150,6 +175,7 @@ class VLMGRPO:
         Returns:
             GRPOConfig: Configured training arguments
         """
+        logger = logging.getLogger("vlm_grpo")
         logger.info("Configuring GRPO training parameters:")
         logger.info(f"  Output directory: {output_dir}")
         logger.info(f"  Learning rate: {lr}")
@@ -216,6 +242,7 @@ class VLMGRPO:
             This method configures and executes GRPO training with the specified hyperparameters.
             The training process will save checkpoints and logs to the specified output directory.
         """
+        logger = logging.getLogger("vlm_grpo")
         logger.info("=" * 60)
         logger.info("STARTING VLM GRPO TRAINING")
         logger.info("=" * 60)
@@ -276,7 +303,7 @@ class VLMGRPO:
             raise
 
         # Push to hub
-        logger.info(f"Pushing model to hub with dataset name: {output_dir}")
+        logger.info(f"Pushing model to hub with name: {output_dir}")
         try:
             trainer.push_to_hub(dataset_name=output_dir)
             logger.info("Model pushed to hub successfully")
