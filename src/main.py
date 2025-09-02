@@ -13,9 +13,9 @@ if __name__ == "__main__":
     epochs=1
     batch_size=2
     max_length=1024
-    num_generations=2,
-    max_prompt_length=2048,
-    log_steps=10,
+    num_generations=2
+    max_prompt_length=2048
+    log_steps=10
     save_steps=10
 
     dataset = Dataset(dataset_id=dataset_id)
