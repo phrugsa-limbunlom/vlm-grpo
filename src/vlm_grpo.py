@@ -45,7 +45,7 @@ class LoRA:
             
         Returns:
             The model with LoRA applied
-        """  logger: logging.Logger = logger
+        """  
         logger.info(f"Configuring LoRA with r={r}, alpha={alpha}, dropout={dropout}")
         logger.info("Target modules: ['q_proj', 'v_proj']")
         
