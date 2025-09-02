@@ -1,6 +1,5 @@
 from datasets import load_dataset, Dataset as HFDataset, DatasetDict
 from typing import Optional, Dict, Any, List, Union
-from transformers import PreTrainedProcessor
 
 
 class Dataset:
@@ -63,7 +62,7 @@ class TransformData:
     conversation format with proper system prompts and chat templates.
     """
 
-    def __init__(self, model_id: str, processor: PreTrainedProcessor) -> None:
+    def __init__(self, model_id: str, processor: Any) -> None:
         """
         Initialize the data transformer with model and processor.
         
@@ -72,7 +71,7 @@ class TransformData:
             processor: The processor for handling multimodal inputs
         """
         self.model_id: str = model_id
-        self.processor: PreTrainedProcessor = processor
+        self.processor: Any = processor
 
     def _make_conversation(self, example: Dict[str, Any]) -> Dict[str, Any]:
         """
