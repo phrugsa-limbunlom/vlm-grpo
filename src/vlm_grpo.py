@@ -117,7 +117,8 @@ class VLMGRPO:
             raise
 
         logger.info("Applying LoRA configuration...")
-        self.model = LoRA(self.model, logger).config_lora(
+        
+        self.model = LoRA(self.model).config_lora(
             task_type="CAUSAL_LM", r=8, alpha=32, dropout=0.1
         )
         logger.info("Model loading and LoRA configuration completed")
