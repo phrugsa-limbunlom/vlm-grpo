@@ -30,7 +30,7 @@ class LoRA:
             logger: Logger instance for tracking process
         """
         self.model: Qwen2_5_VLForConditionalGeneration = model
-        logger: logging.Logger = logger
+      
         logger.info("LoRA configuration initialized")
 
     def config_lora(self, task_type: str, r: int, alpha: int, dropout: float) -> PeftModel:
@@ -45,7 +45,7 @@ class LoRA:
             
         Returns:
             The model with LoRA applied
-        """
+        """  logger: logging.Logger = logger
         logger.info(f"Configuring LoRA with r={r}, alpha={alpha}, dropout={dropout}")
         logger.info("Target modules: ['q_proj', 'v_proj']")
         
