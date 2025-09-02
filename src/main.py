@@ -18,9 +18,9 @@ if __name__ == "__main__":
     log_steps=10,
     save_steps=10
 
-    train_dataset = Dataset(dataset_id=dataset_id).get_train_dataset()
+    train_dataset = Dataset(dataset_id=dataset_id).load_data().get_train_dataset()
 
-    train_dataset = TransformData().transform(train_dataset)
+    train_dataset = TransformData(model_id=model_id, processor=AutoProcessor.from_pretrained(model_id)).transform(train_dataset)
 
 
     vlm_grpo = VLMGRPO(model_id=model_id, 
