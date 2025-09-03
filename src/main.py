@@ -1,45 +1,124 @@
-from custom_datasets import Dataset, TransformData
-from vlm_grpo import VLMGRPO
-from transformers import AutoProcessor
+from datetime import time
+
+from custom_datasets import TransformData
+from vlm_grpo import VLMGRPO, logger
+from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+import time
+import torch
+from qwen_vl_utils import process_vision_info
+
+from custom_datasets import Dataset
+from constants import SystemPrompts, TrainingConfig, ModelConfig
+
+def train():
+
+    output_dir = ModelConfig.OUTPUT_DIR
+
+    learning_rate = TrainingConfig.LEARNING_RATE
+    epochs = TrainingConfig.EPOCHS
+    batch_size = TrainingConfig.BATCH_SIZE
+    max_length = TrainingConfig.MAX_LENGTH
+    num_generations = TrainingConfig.NUM_GENERATIONS
+    max_prompt_length = TrainingConfig.MAX_PROMPT_LENGTH
+    log_steps = TrainingConfig.LOG_STEPS
+    save_steps = TrainingConfig.SAVE_STEPS
+
+    train_dataset = dataset.get_train_dataset()
+
+    train_dataset = TransformData(model_id=model_id, processor=AutoProcessor.from_pretrained(model_id)).transform(
+        train_dataset)
+
+    vlm_grpo = VLMGRPO(model_id=model_id,
+                       processor=AutoProcessor.from_pretrained(model_id))
+
+    vlm_grpo.load_model()
+
+    vlm_grpo.train(train_dataset=train_dataset,
+                   output_dir=output_dir,
+                   learning_rate=learning_rate,
+                   epochs=epochs,
+                   batch_size=batch_size,
+                   max_length=max_length,
+                   num_generations=num_generations,
+                   max_prompt_length=max_prompt_length,
+                   log_steps=log_steps,
+                   save_steps=save_steps)
+
+def test():
+    trained_model_id = ModelConfig.TRAINED_MODEL_ID
+    trained_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        trained_model_id,
+        torch_dtype="auto",
+        device_map="auto",
+    )
+    trained_processor = AutoProcessor.from_pretrained(trained_model_id, use_fast=True, padding_side="left")
+    processor = AutoProcessor.from_pretrained(model_id, use_fast=True, padding_side="left")
+
+    test_dataset = dataset.get_test_dataset()
+
+    def generate_with_reasoning(problem, image):
+        SYSTEM_PROMPT: str = SystemPrompts.SYSTEM_PROMPT
+
+        # Conversation setting for sending to the model
+        conversation = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": image},
+                    {"type": "text", "text": problem},
+                ],
+            },
+        ]
+        prompt = trained_processor.apply_chat_template(
+            conversation,
+            add_generation_prompt=True,
+            tokenize=False
+        )
+
+        # Process images using the process_vision_info from qwen_vl_utils
+        image_inputs, video_inputs = process_vision_info(conversation)
+
+        inputs = processor(
+            text=[prompt],
+            images=image_inputs,
+            videos=video_inputs,
+            padding=True,
+            return_tensors="pt",
+        )
+        inputs = inputs.to(trained_model.device)
+
+        # Generate text without gradients
+        start_time = time.time()
+        with torch.no_grad():
+            output_ids = trained_model.generate(**inputs, max_new_tokens=500)
+        end_time = time.time()
+
+        # Decode and extract model response
+        generated_text = trained_processor.decode(output_ids[0], skip_special_tokens=True)
+
+        # Get inference time
+        inference_duration = end_time - start_time
+
+        # Get number of generated tokens
+        num_input_tokens = inputs["input_ids"].shape[1]
+        num_generated_tokens = output_ids.shape[1] - num_input_tokens
+
+        return generated_text, inference_duration, num_generated_tokens
+
+    generated_text, inference_duration, num_generated_tokens = generate_with_reasoning(test_dataset[0]['problem'],
+                                                                                       test_dataset[0]['image'])
+
+    logger.info(generated_text)
 
 
 if __name__ == "__main__":
 
-    dataset_id = 'lmms-lab/multimodal-open-r1-8k-verified'
-    model_id = "Qwen/Qwen2.5-VL-3B-Instruct"
-    output_dir = "Qwen2.5-VL-3B-Instruct-Thinking"
+    dataset_id = ModelConfig.DATASET_ID
+    model_id = ModelConfig.MODEL_ID
 
-    learning_rate=1e-5
-    epochs=1
-    batch_size=2
-    max_length=1024
-    num_generations=2
-    max_prompt_length=2048
-    log_steps=10
-    save_steps=10
+    train()
 
     dataset = Dataset(dataset_id=dataset_id)
 
     dataset.load_data()
-
-    train_dataset = dataset.get_train_dataset()
-
-    train_dataset = TransformData(model_id=model_id, processor=AutoProcessor.from_pretrained(model_id)).transform(train_dataset)
-
-
-    vlm_grpo = VLMGRPO(model_id=model_id, 
-                       processor=AutoProcessor.from_pretrained(model_id))
-
-
-    vlm_grpo.load_model()
-
-    vlm_grpo.train(train_dataset=train_dataset, 
-                    output_dir=output_dir,
-                    learning_rate=learning_rate,
-                    epochs=epochs,
-                    batch_size=batch_size,
-                    max_length=max_length,
-                    num_generations=num_generations,
-                    max_prompt_length=max_prompt_length,
-                    log_steps=log_steps,
-                    save_steps=save_steps) 

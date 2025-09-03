@@ -1,5 +1,6 @@
 from datasets import load_dataset, Dataset as HFDataset, DatasetDict
 from typing import Optional, Dict, Any, List, Union
+from constants import SystemPrompts
 
 
 class Dataset:
@@ -86,15 +87,8 @@ class TransformData:
         Returns:
             dict: Transformed example with 'prompt' and 'image' keys
         """
-        SYSTEM_PROMPT: str = (
-            "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant "
-            "first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning "
-            "process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., "
-            "<think> reasoning process here </think><answer> answer here </answer>"
-        )
-
         conversation: List[Dict[str, Any]] = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": SystemPrompts.SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": [
