@@ -117,6 +117,24 @@ def test():
 
 
 def evaluate(data_id : str, split: str, limit: Optional[int] = None):
+    """
+    Evaluate the trained VLM on a Hugging Face dataset split and report simple exact-match accuracy.
+
+    Args:
+        data_id (str): Hugging Face dataset ID to evaluate on (e.g., "AI4Math/MathVista").
+        split (str): Dataset split to use (e.g., "testmini" or "test" for MathVista).
+        limit (Optional[int]): If provided, evaluate only the first N examples.
+
+    Behavior:
+        - Loads the trained model from `ModelConfig.TRAINED_MODEL_ID`.
+        - Loads the dataset split via `datasets.load_dataset(data_id)[split]`.
+        - Builds a multimodal conversation (image + question/query), applies the chat template,
+          and runs generation.
+        - Normalizes predictions and gold answers by `answer_type` and `precision` when present
+          (e.g., integer rounding, fixed decimals for floats).
+        - Logs running accuracy every 50 examples and final accuracy at the end.
+
+    """
     trained_model_id = ModelConfig.TRAINED_MODEL_ID
     trained_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
         trained_model_id,
