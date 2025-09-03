@@ -1,5 +1,5 @@
 from datetime import time
-
+from datasets import load_dataset
 from custom_datasets import TransformData
 from vlm_grpo import VLMGRPO, logger
 from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
@@ -9,8 +9,10 @@ from qwen_vl_utils import process_vision_info
 
 from custom_datasets import Dataset
 from constants import SystemPrompts, TrainingConfig, ModelConfig
-
+from typing import Optional
 import argparse
+
+from PIL import Image
 
 def train():
 
@@ -114,11 +116,117 @@ def test():
     logger.info(generated_text)
 
 
+def evaluate(data_id : str, split: str, limit: Optional[int] = None):
+    trained_model_id = ModelConfig.TRAINED_MODEL_ID
+    trained_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        trained_model_id,
+        torch_dtype="auto",
+        device_map="auto",
+    )
+
+    trained_processor = AutoProcessor.from_pretrained(trained_model_id, use_fast=True, padding_side="left")
+    base_processor = AutoProcessor.from_pretrained(model_id, use_fast=True, padding_side="left")
+
+    dataset = load_dataset(data_id)[split]
+
+    if limit:
+        dataset = dataset[:limit]
+    
+    def normalize(pred: str, ex: dict) -> str:
+        atype = ex.get("answer_type", "text")
+
+        if atype == "integer":
+            try:
+                return str(int(round(float(pred.strip()))))
+            except:
+                return pred.strip().lower()
+        if atype == "float":
+            precision = ex.get("precision", 1)
+
+            try:
+                val = float(pred.strip().split()[-1].replace(",","")) # value
+                fmt = f"{{:.{int(precision)}f}}" # format
+                return fmt.format(val)
+            except:
+                return pred.stip().lower()
+        return pred.strip().lower()
+
+    def normalize_gold(ans: str, ex: dict) -> str:
+        atype = ex.get("answer_type", "text")
+        if atype == "integer":
+            try:
+                return str(int(ans.strip))
+            except:
+                return ans.strip().lower()
+        if atype == "float":
+            precision = ex.get("precision",1)
+            try:
+                val = float(ans.strip())
+                fmt = f"{{:.{int(precision)}f}}"
+                return fmt.format(val)
+            except:
+                return ans.strip().lower()
+        return ans.strip().lower()
+
+    
+    correct = 0
+    total = 0
+
+    for example in dataset:
+        question = example.get("query") or example.get("question") or ""
+        pil_image = example.get("decoded_image")
+        if pil_image is None:
+            img_path = example.get("image")
+            pil_image = Image.open(img_path).convert("RGB")
+
+        conversation = [
+            {"role": "system", "content": SystemPrompts.SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": pil_image},
+                    {"type": "text", "text": question},
+                ],
+            },
+        ]
+
+        prompt = trained_processor.apply_chat_template(
+            conversation,
+            add_generation_prompt=True,
+            tokenize=False
+        )
+
+        image_inputs, video_inputs = process_vision_info(conversation)
+        inputs = base_processor(
+            text=[prompt],
+            images=image_inputs,
+            videos=video_inputs,
+            padding=True,
+            return_tensor="pt",
+        ).to(trained_model.device)
+
+        with torch.no_grad():
+            output_ids = trained_model.generate(**inputs, max_new_token=256)
+        generated_text = trained_processor.decode(output_ids[0], skip_special_tokens=True)
+
+        pred_norm = normalize(generated_text, example)
+        gold_norm = normalize_gold(example.get("answer",""), example)
+
+        correct += int(pred_norm == gold_norm)
+        total += 1
+
+        if total % 50 == 0:
+            logger.info(f"Evaluated {total} examples, running accuracy: {correct/total:.4f}")
+
+    acc = correct / max(total, 1)
+    logger.info(f"{data_id} ({split}) accuracy: {acc:.4f} ({correct}/{total})")
+            
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="VLM GRPO Training and Testing")
-    parser.add_argument("--mode", choices=["train", "test"], default="train", 
-                       help="Mode to run: train or test")
+    parser.add_argument("--mode", choices=["train", "test", "eval"], default="train", 
+                       help="Mode to run: train, test, or evaluate")
     
     args = parser.parse_args()
 
@@ -133,3 +241,7 @@ if __name__ == "__main__":
         train()
     elif args.mode == "test":
         test()
+    elif args.mode == "eval":
+        dataset = ModelConfig.EVAL_DATASET_ID
+        split = ModelConfig.EVAL_DATASET_SPLIT
+        evaluate(dataset, split)

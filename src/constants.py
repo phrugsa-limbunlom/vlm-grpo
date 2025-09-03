@@ -30,3 +30,6 @@ class ModelConfig:
     OUTPUT_DIR = "Qwen2.5-VL-3B-Instruct-Thinking"
     USER_NAME = "PhrugsaL"
     TRAINED_MODEL_ID = USER_NAME + "/" + OUTPUT_DIR
+
+    EVAL_DATASET_ID = "AI4Math/MathVista"
+    EVAL_DATASET_SPLIT = "testmini"
