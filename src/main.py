@@ -10,6 +10,8 @@ from qwen_vl_utils import process_vision_info
 from custom_datasets import Dataset
 from constants import SystemPrompts, TrainingConfig, ModelConfig
 
+import argparse
+
 def train():
 
     output_dir = ModelConfig.OUTPUT_DIR
@@ -114,11 +116,20 @@ def test():
 
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser(description="VLM GRPO Training and Testing")
+    parser.add_argument("--mode", choices=["train", "test"], default="train", 
+                       help="Mode to run: train or test")
+    
+    args = parser.parse_args()
+
     dataset_id = ModelConfig.DATASET_ID
     model_id = ModelConfig.MODEL_ID
-
-    train()
 
     dataset = Dataset(dataset_id=dataset_id)
 
     dataset.load_data()
+
+    if args.mode == "train":
+        train()
+    elif args.mode == "test":
+        test()
