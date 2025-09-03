@@ -84,7 +84,7 @@ class LoRA:
         
         logger.info("LoRA configuration applied successfully")
         logger.info("Model trainable parameters:")
-        self.model.print_trainable_parameters()
+        logger.info(self.model.print_trainable_parameters())
 
         return self.model
 
@@ -171,7 +171,7 @@ class VLMGRPO:
         Returns:
             GRPOConfig: Configured training arguments
         """
-        logger = logging.getLogger("vlm_grpo")
+
         logger.info("Configuring GRPO training parameters:")
         logger.info(f"  Output directory: {output_dir}")
         logger.info(f"  Learning rate: {lr}")
@@ -238,11 +238,8 @@ class VLMGRPO:
             This method configures and executes GRPO training with the specified hyperparameters.
             The training process will save checkpoints and logs to the specified output directory.
         """
-        logger = logging.getLogger("vlm_grpo")
-        logger.info("=" * 60)
         logger.info("STARTING VLM GRPO TRAINING")
-        logger.info("=" * 60)
-        
+
         # Log dataset information
         logger.info(f"Training dataset size: {len(train_dataset)}")
         logger.info(f"Dataset features: {train_dataset.features}")
