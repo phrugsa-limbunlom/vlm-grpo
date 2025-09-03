@@ -244,4 +244,4 @@ if __name__ == "__main__":
     elif args.mode == "eval":
         dataset = ModelConfig.EVAL_DATASET_ID
         split = ModelConfig.EVAL_DATASET_SPLIT
-        evaluate(dataset, split)
+        evaluate(dataset, split, 100)
