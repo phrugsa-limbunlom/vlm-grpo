@@ -35,6 +35,7 @@ def setup_logger(output_dir: str = "./output") -> logging.Logger:
     logger.info(f"Logger initialized. Log file: {log_file}")
     return logger
 
+logger = setup_logger(output_dir="./output")
 
 class LoRA:
     """
@@ -52,7 +53,6 @@ class LoRA:
             model: The base model to apply LoRA to
         """
         self.model: Qwen2_5_VLForConditionalGeneration = model
-        logger = logging.getLogger("vlm_grpo")
         logger.info("LoRA configuration initialized")
 
     def config_lora(self, task_type: str, r: int, alpha: int, dropout: float) -> PeftModel:
@@ -67,8 +67,7 @@ class LoRA:
             
         Returns:
             The model with LoRA applied
-        """  
-        logger = logging.getLogger("vlm_grpo")
+        """
         logger.info(f"Configuring LoRA with r={r}, alpha={alpha}, dropout={dropout}")
         logger.info("Target modules: ['q_proj', 'v_proj']")
         
@@ -111,9 +110,7 @@ class VLMGRPO:
         self.processor: Any = processor
         self.model: Optional[PeftModel] = None
         self.output_dir: str = output_dir
-        
-        # Setup logging
-        logger = setup_logger(output_dir)
+
         logger.info("VLM GRPO trainer initialized")
         logger.info(f"Model ID: {model_id}")
         logger.info(f"Output directory: {output_dir}")
@@ -125,7 +122,6 @@ class VLMGRPO:
         Loads a Qwen2.5-VL model with bfloat16 precision and applies LoRA
         with default hyperparameters (r=8, alpha=32, dropout=0.1).
         """
-        logger = logging.getLogger("vlm_grpo")
         logger.info(f"Loading pre-trained model: {self.model_id}")
         logger.info("Using bfloat16 precision and auto device mapping")
         
