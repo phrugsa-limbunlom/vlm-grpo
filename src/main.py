@@ -220,8 +220,9 @@ def evaluate(data_id : str, split: str, limit: Optional[int] = None):
             images=image_inputs,
             videos=video_inputs,
             padding=True,
-            return_tensor="pt",
-        ).to(trained_model.device)
+            return_tensors="pt",
+        )
+        inputs = {k: v.to(trained_model.device) for k, v in inputs.items()}
 
         with torch.no_grad():
             output_ids = trained_model.generate(**inputs, max_new_tokens=256)
