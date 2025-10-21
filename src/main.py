@@ -162,11 +162,19 @@ def evaluate(data_id : str, split: str, limit: Optional[int] = None):
             precision = ex.get("precision", 1)
 
             try:
-                val = float(pred.strip().split()[-1].replace(",","")) # value
-                fmt = f"{{:.{int(precision)}f}}" # format
-                return fmt.format(val)
+                # Extract numeric value from the prediction, handling various formats
+                pred_clean = pred.strip()
+                # Try to find the last number in the string
+                import re
+                numbers = re.findall(r'-?\d+\.?\d*', pred_clean)
+                if numbers:
+                    val = float(numbers[-1].replace(",",""))
+                    fmt = f"{{:.{int(precision)}f}}" # format
+                    return fmt.format(val)
+                else:
+                    return pred_clean.lower()
             except:
-                return pred.stip().lower()
+                return pred.strip().lower()
         return pred.strip().lower()
 
     def normalize_gold(ans: str, ex: dict) -> str:
