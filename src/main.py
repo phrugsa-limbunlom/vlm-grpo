@@ -148,7 +148,7 @@ def evaluate(data_id : str, split: str, limit: Optional[int] = None):
     dataset = load_dataset(data_id)[split]
 
     if limit:
-        dataset = dataset[:limit]
+        dataset = dataset.select(range(min(limit, len(dataset))))
     
     def normalize(pred: str, ex: dict) -> str:
         atype = ex.get("answer_type", "text")
