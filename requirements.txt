@@ -9,6 +9,10 @@ peft>=0.7.0
 # TRL for GRPO training
 trl>=0.7.0
 
+# TensorBoard for logging
+tensorboard>=2.14.0
+
+
 # Math verification and LaTeX processing
 math-verify>=0.1.0
 latex2sympy2-extended>=0.1.0
