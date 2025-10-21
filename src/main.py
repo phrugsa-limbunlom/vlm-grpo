@@ -244,6 +244,15 @@ def evaluate(data_id : str, split: str, limit: Optional[int] = None):
 
         if total % 50 == 0:
             logger.info(f"Evaluated {total} examples, running accuracy: {correct/total:.4f}")
+            
+            # generation response for some examples
+            logger.info(f"\n--- Example {total + 1} ---")
+            logger.info(f"Question: {question}")
+            logger.info(f"Generated Response: {generated_text}")
+            logger.info(f"Normalized Prediction: {pred_norm}")
+            logger.info(f"Gold Answer: {example.get('answer', '')}")
+            logger.info(f"Normalized Gold: {gold_norm}")
+            logger.info(f"Correct: {pred_norm == gold_norm}")
 
     acc = correct / max(total, 1)
     logger.info(f"{data_id} ({split}) accuracy: {acc:.4f} ({correct}/{total})")
