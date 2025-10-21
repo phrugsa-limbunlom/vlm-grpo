@@ -224,7 +224,7 @@ def evaluate(data_id : str, split: str, limit: Optional[int] = None):
         ).to(trained_model.device)
 
         with torch.no_grad():
-            output_ids = trained_model.generate(**inputs, max_new_token=256)
+            output_ids = trained_model.generate(**inputs, max_new_tokens=256)
         generated_text = trained_processor.decode(output_ids[0], skip_special_tokens=True)
 
         pred_norm = normalize(generated_text, example)
